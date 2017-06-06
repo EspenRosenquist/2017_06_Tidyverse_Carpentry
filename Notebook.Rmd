@@ -1,0 +1,463 @@
+---
+title: "Tidyverse carpentry"
+author: "Espen Rosenquist"
+date: "6 juni 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Prerequisites
+
+- GitHub account
+- Git
+- RStudio
+
+
+# GitHub
+We fork a repo:
+[Tidyverse carpentry repository]("https://github.com/EspenRosenquist/2017_06_Tidyverse_Carpentry.git") and clone it.
+
+We then start a new project in RStudio with version control.
+
+## Commit
+
+It is wise to upload our work for day one. We want a snapshot of our work.
+
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+packagelist <- c("tidyverse", "maps")
+lapply(packagelist, library, character.only = TRUE)
+```
+
+We have a project hierarchy:
+- data
+- scripts
+
+So, lets load some data:
+```{r}
+GapMinder <- read_csv("./Data/gapminder-FiveYearData.csv")
+```
+
+
+# ggplot
+We make a testplot to show the relationship between gross domestic product and life expectancy
+```{r}
+ggplot(data = GapMinder) +
+    geom_point(mapping = aes(x = gdpPercap, y = lifeExp))
+```
+
+
+Lets color them by continent and make them a little bit mor legible
+```{r}
+ggplot(data = GapMinder) +
+    geom_jitter(mapping = aes(x = gdpPercap, y = lifeExp, color = continent))
+```
+
+It is still too dense and difficult to read, so let us make the dots sized by per population, and log the gross domestic product per capita.
+```{r}
+ggplot(data = GapMinder) +
+    geom_point(mapping = aes(x = log(gdpPercap), y = lifeExp, color = continent, size = pop))
+```
+Here, countries with large populations have large dots, while life expectancy is up the y-axis. 
+
+This is starting to look better, but the aestetics are still to be improved. We now want to apply the same aestetics for all points, so we put the coloring outside the aes().
+```{r}
+ggplot(data = GapMinder) +
+    geom_point(mapping = aes(x = log(gdpPercap), y = lifeExp), 
+               alpha = 0.1, 
+               size = 2, 
+               color = "blue",
+               size = 2)
+```
+For time series: group them by country per year, but still with the continent determining the coloring. 
+```{r}
+ggplot(data = GapMinder) +
+    geom_line(mapping = aes(x =year, 
+                            y = lifeExp,
+                            group = country,
+                            color = continent))
+```
+
+There are obviously some outliers here - there is at least two countries that must have experienced some sort of crisis.
+
+Box plots, showing the 95 percent inside the box, the median, variance as lines, outliers as dots:
+```{r}
+ggplot(data = GapMinder) +
+    geom_boxplot(mapping = aes(x =continent, 
+                            y = lifeExp))
+```
+
+How about combining two different geoms, trying to show all data from the continents - exactly how the box plot is sorted?
+```{r}
+ggplot(data = GapMinder) +
+    geom_jitter(mapping = aes(x = continent,
+                              y = lifeExp,
+                              color = continent)) +
+    geom_boxplot(mapping = aes(x =continent, 
+                            y = lifeExp, 
+                            color = continent))
+```
+
+We used two of the graphs and put them as layers on the same graph, just by using the + sign and adding a geom.
+
+This is a bit extraneous: the mapping is exactly the same for both. Therefore, we can put all commonalities at the top level. This not only makes the code more shorter, but also more readable, in addition to making it much easier to add and refine each layer.
+```{r}
+ggplot(data = GapMinder, mapping = aes(x =continent, 
+                            y = lifeExp, 
+                            color = continent)) +
+    geom_jitter() +
+    geom_boxplot(alpha = 0.4)
+```
+
+I feel more or less ready to explore aspects of the data. 
+
+### Challenge
+*How does gross domestic product relate to life expectancy?*
+```{r}
+ggplot(data = GapMinder, 
+       mapping = aes(x =log(gdpPercap), 
+                     y = lifeExp, 
+                     color = continent)) +
+    geom_jitter(alpha = 0.2) +
+    geom_smooth(method = "lm")
+```
+
+We have control over each layer. Here we have a linear model fitted to the data for each continent. What if I want to have a linear fit for all points?
+
+This is *important*: aes controls data in the geom, so the `color=continent` needs to go inside the aesthetics, while alpha outside.
+
+```{r}
+ggplot(data = GapMinder, 
+       mapping = aes(x =log(gdpPercap), 
+                     y = lifeExp)) +
+    geom_jitter(mapping = aes(color = continent), alpha = 0.2) +
+    geom_smooth(method = "lm")
+```
+
+### Challenge
+*Make a boxplot of life expectancy by year*
+
+```{r}
+GapMinder %>% 
+    mutate(year = as.factor(year)) %>% 
+    ggplot(aes(x = year, y = lifeExp)) +
+    geom_boxplot()
+```
+
+### Challenge
+*When was the interquartile range of life the smallest?*
+```{r}
+GapMinder %>% 
+    mutate(year = as.factor(year)) %>% 
+    ggplot(aes(x = year, 
+               y = log(gdpPercap))) +
+    geom_boxplot()
+```
+
+Lecturer a bit fast....
+GPD per capita vs life expectancy with the 2d density geom.
+```{r}
+GapMinder %>% 
+    ggplot(aes(x = lifeExp, y = log(gdpPercap))) +
+    geom_density2d()
+```
+Try it out with aesthetics in your own pace.
+
+## Facet wrap
+By continent, what is the relationship between gross domestic product and life expectancy for each continent? 
+```{r}
+GapMinder %>% 
+    ggplot(aes(x = gdpPercap, 
+               y = lifeExp)) +
+    geom_point() + 
+    geom_smooth(method = "loess") +
+    scale_x_log10() +
+    facet_wrap(~continent)
+```
+A variantion of `facet_wrap` is `facet_grid` where you can determine how it is wrapped - in two dimensions. The tilde ~ is a special character to separate the left and right hand side of the wrap.
+
+### Assignment:
+*Try faceting by year, keeping the linear smoother. Is there any change in slope of the linear trend over the years? What if you look at linear models per continent?*
+
+```{r}
+GapMinder %>% 
+    mutate(year = as.factor(year)) %>% 
+    ggplot(aes(x = gdpPercap, 
+               y = lifeExp)) +
+    geom_point() + 
+    geom_smooth(method = "lm") +
+    scale_x_log10() +
+    facet_wrap(~year)
+```
+
+```{r, echo = FALSE}
+GapMinder %>% 
+    mutate(year = as.factor(year)) %>% 
+    ggplot(aes(x = gdpPercap, 
+               y = lifeExp,
+               group = year)) +
+    geom_point() + 
+    geom_smooth(method = "lm") +
+    scale_x_log10() +
+    facet_wrap(~continent)
+```
+
+## Summary
+```{r, eval = FALSE}
+ggplot(data = <DATA> ) +
+    <GEOM_FUNCTION>(mapping = aes(<mAPPINGS>)) +
+    <FACET_FUNCTION>
+```
+
+## Filter function
+```{r}
+GapMinder %>% 
+    filter(year == 2007) %>% 
+    ggplot() +
+    geom_bar(mapping = aes(x = continent), stat = "count")
+```
+
+I want to have country on one axis, population on other axis. Do not transform it by the `stat = "count"`. I want summary statistics, so I have to use `stat = "identity"` in order to plot the population - not the count of records.
+*Wrong:*
+Counts the records of each country.
+```{r}
+GapMinder %>% 
+    filter(year == 2007, continent == "Oceania") %>% 
+    ggplot() +
+    geom_bar(mapping = aes(x = country), 
+             stat = "count")
+```
+
+*Right:*
+```{r}
+GapMinder %>% 
+    filter(year == 2007, continent == "Oceania") %>% 
+    ggplot() +
+    geom_bar(mapping = aes(x = country, 
+                           y = pop), 
+             stat = "identity")
+```
+
+If we substitute "Oceania" with "Asia" in the filter:
+```{r}
+GapMinder %>% 
+    filter(year == 2007, continent == "Asia") %>% 
+    ggplot() +
+    geom_bar(mapping = aes(x = country, 
+                           y = pop), 
+             stat = "identity")
+```
+The x-axis is completely unlegible. Just flip the axis!
+```{r}
+GapMinder %>% 
+    filter(year == 2007, continent == "Asia") %>% 
+    ggplot() +
+    geom_bar(mapping = aes(x = country, 
+                           y = pop), 
+             stat = "identity") +
+    coord_flip()
+```
+*Let's make a fancy graph!*
+```{r}
+GapMinder %>% 
+    mutate(year = as.factor(year)) %>% 
+    ggplot(aes(x = gdpPercap, 
+               y = lifeExp,
+               color = continent)) +
+    geom_point() + 
+    scale_x_log10() +
+    facet_wrap(~year)
+```
+
+Population per billion:
+```{r}
+GapMinder %>% 
+    mutate(year = as.factor(year)) %>% 
+    ggplot(aes(x = gdpPercap, 
+               y = lifeExp,
+               color = continent,
+               size = pop/10^6)) +
+    geom_point() + 
+    scale_x_log10() +
+    facet_wrap(~year)
+```
+Prettyfi with *labels*:
+```{r}
+GapMinder %>% 
+    mutate(year = as.factor(year)) %>% 
+    ggplot(aes(x = gdpPercap, 
+               y = lifeExp,
+               color = continent,
+               size = pop/10^6)) +
+    geom_point() + 
+    scale_x_log10() +
+    facet_wrap(~year) +
+    labs(title = "GDP per capita per year per continent",
+         subtitle = "In the last 50 years, life expectancy has improved in most countries of the world",
+         caption = "Gapminder foundation, gapminder.com",
+         x = "GDP per capita in ''000 USD",
+         y = "Life expectancy",
+         color = "Continent",
+         size = "Population, millions")
+```
+It is time to save the plot:
+```{r, message = FALSE}
+ggsave("my_fancy_plot.png", 
+       path = "./Plots", 
+       device = "png", 
+       dpi = 300)
+```
+It is of course possible to save by right-click on the shown graph, but please include this save line for replicability!
+
+# dplyr
+R for reproducable scientific analysis.
+Key points
+
+- manipulate data frames
+- `select()` to choose variables
+- `filter()` to choose data based on values
+- `group_by` and `summarize()` to work on subsets
+- `mutate()` to make new variables or manipulate existing ones
+- pipe command
+
+Let's make a new script called `dplyr.R` in the _scripts_ folder (but not necessary - I make my notes here):
+
+```{r, eval=FALSE}
+library(tidyverse)
+GapMinder <- read_csv("./Data/gapminder-FiveYearData.csv")
+```
+
+## The pipe command
+Similar to UNIX shell and other script
+A test of the pipe command:
+```{r}
+# base R
+rep("This is an example", times = 3)
+
+# tidy R
+"This is an example" %>% 
+    rep(3)
+```
+Let's start by restricting our dataframe to a subset:
+```{r}
+# base R
+year_country_gdp <- select(GapMinder, year, country, gdpPercap)
+# dplyr
+year_country_gdp <- GapMinder %>% 
+    select(year, country, gdpPercap)
+```
+
+We can pipe to ggplot in a very efficient manner:
+```{r}
+GapMinder %>% 
+    filter(year == 2002) %>% 
+    ggplot(mapping = aes(x = continent, y = pop)) +
+    geom_boxplot()
+```
+
+It is time to combine some commands:
+```{r}
+year_country_gdp_euro <- GapMinder %>% 
+    filter(continent == "Europe") %>% 
+    select(year, country, gdpPercap)
+```
+
+### Challenge
+* Write a single command that will produce a data frame that has the Norwegian values for `gdpPercap`, `lifeExp` and `year`. How many rows does your data frame have and why?*
+```{r}
+country_lifeExp_Norway <- GapMinder %>% 
+    filter(country=="Norway") %>% 
+    select(gdpPercap, lifeExp, year) 
+```
+
+## group_by
+It would be silly to write such a function for each country, so it is better to use a `group_by` command in dplyr:
+```{r}
+GapMinder %>% 
+    group_by(continent)
+```
+
+## summarize
+```{r}
+GapMinder %>% 
+    group_by(continent) %>% 
+    summarize(mean_gdpPercap = mean(gdpPercap))
+```
+
+If we drop the `group_by` clause:
+```{r}
+GapMinder %>% 
+    summarize(mean_gdpPercap = mean(gdpPercap))
+```
+Make a plot:
+```{r}
+GapMinder %>% 
+    group_by(continent) %>% 
+    summarize(mean_gdpPercap = mean(gdpPercap)) %>% 
+    ggplot(aes(x = continent, y = mean_gdpPercap)) +
+    geom_point()
+```
+### Challenge
+*Calculate the average life expectancy per country in Asia. which has the longest and the shortest?*
+
+```{r}
+GapMinder %>% 
+    filter(continent == "Asia") %>% 
+    group_by(country) %>% 
+    summarize(avgLifeExp = mean(lifeExp)) %>% 
+    filter(avgLifeExp== min(avgLifeExp) | avgLifeExp == max(avgLifeExp))
+```
+Graphical way:
+```{r}
+GapMinder %>% 
+    filter(continent == "Asia") %>% 
+    group_by(country) %>% 
+    summarize(avgLifeExp = mean(lifeExp)) %>% 
+    ggplot(aes(x=reorder(country, avgLifeExp), y =avgLifeExp)) +
+    geom_bar(stat = "identity") +
+    coord_flip()
+```
+
+## mutate
+`mutate`
+```{r}
+GapMinder %>% 
+    mutate(gdp_billion = gdpPercap*pop/10^9) %>% 
+    group_by(continent, year) %>% 
+    summarize(mean_gdp_billion = mean(gdp_billion))
+```
+### Challenge
+*Map the stuff on a map*
+```{r}
+library(maps)
+
+GapMinder_country_summary <- GapMinder %>% 
+    group_by(country) %>% 
+    summarize(mean_lifeExp = mean(lifeExp))
+
+map_data("world")  %>% 
+    rename(country = region) %>% 
+    left_join(GapMinder_country_summary, by = "country") %>% 
+    ggplot() +
+    geom_polygon(aes(x = long, y = lat, group = group, fill = mean_lifeExp)) +
+    scale_fill_gradient(low = "blue", high = "red") +
+    coord_equal()
+    
+```
+The reason why some regions are grey are:
+- names for countries are different in the two data sets (USA = United States)
+- there are missing values
+
+```{r}
+unique(GapMinder$country)
+```
+
+One could do:
+```{r}
+GapMinder$country[GapMinder$country == "United States"] <- "USA"
+```
+But that would be silly for the set. Solution please?
+

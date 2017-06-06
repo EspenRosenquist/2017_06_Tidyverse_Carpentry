@@ -1,0 +1,82 @@
+---
+title: "Data frame manipulation with tidyr"
+author: "Espen Rosenquist"
+date: "6 juni 2017"
+output: html_document
+---
+```{r setup, include=FALSE}
+library("knitr")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Prerequisites
+We need some sample data, which we save in our `Data` folder. 
+
+```{r}
+packagelist <- c("readxl", "tidyverse")
+lapply(packagelist, library, character.only = TRUE)
+```
+
+
+```{r, error=TRUE, eval = FALSE}
+# See the etherpad - but really doesn't work on Windows. Must download manually or find other package/parameters to download with
+download.file(url = "http://docs.google.com/spreadsheet/pub?key=phAwcNAVuyj0NpF2PTov2Cw&output=xlsx", destfile = "Data/indicator gapminder infant_mortality.xlsx")
+
+download.file(url = "http://docs.google.com/spreadsheet/pub?key=phAwcNAVuyj0NpF2PTov2Cw&output=xlsx", destfile = "Data/indicator undata total_fertility.xlsx", method = "wininet")
+```
+
+```{r}
+raw_fert <- read_excel(path = "./Data/indicator undata total_fertility.xlsx", sheet = "Data")
+raw_infantMort <- read_excel(path = "./Data/indicator gapminder infant_mortality.xlsx", sheet = "Data" )
+GapMinder <- read_csv("./Data/gapminder-FiveYearData.csv")
+```
+
+## Background
+There is a frequent need to tidy data from sources. 
+
+The, arguably, best way of organising data is where:
+
+- each variable has its own column
+- each observation has its own row
+- contained within one dataset
+
+There are two kinds of data:
+
+- **Wide**: each row is an observation and multiple variables containing the same type of data. Human readable
+- **Long**: one column for the observed variable and the other columns are ID columns. Computer readable
+
+### challenge
+*Is gapminder a purely wide, long, or tidy?*
+
+```{r}
+knitr::kable(head(GapMinder))
+```
+It has three observation values and three ID-columns. It is therefore not wide.
+Neither is it long, because it contains different unit measurements in the columns pop, lifeExp, dpPercap.
+It is considered tidy.
+
+The two datasets we downloaded are... messy. 
+```{r}
+knitr::kable(head(raw_fert))
+```
+
+
+**Observe**:
+
+- each years are headers, columns (as integer) -> *it is wide*
+
+We should tidy the data by collect all years as values in a column named `year` and each existing value in a valuecolumn.
+
+## gather
+
+- data set
+- columns
+- values
+
+```{r}
+fert <- raw_fert %>% 
+    rename(country=`Total fertility rate`) %>% 
+    gather(key = year, value = fert, -country) %>% 
+    mutate(year = as.integer(year))
+```
+
