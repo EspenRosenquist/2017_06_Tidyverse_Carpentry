@@ -21,11 +21,23 @@ We fork a repo:
 [Tidyverse carpentry repository]("https://github.com/EspenRosenquist/2017_06_Tidyverse_Carpentry.git") and clone it.
 
 We then start a new project in RStudio with version control.
+The code included in these notebooks are meant to be several scripts in the Script folder. In this case there are none, as I have made a couple of notebooks. I want to tidy the formatting and split them, but for now I'll save them as-is.
+
+- choose the files
+- push committ
+
+You have to have a key on your machine and git:
+Open a git shell and run the following commands:
+
+```{eval = FALSE}
+git config --global user.name 'EspenRosenquist'
+git config --global user.email 'espen.rosenquist@gmail.com'
+git config --global --list
+```
 
 ## Commit
 
 It is wise to upload our work for day one. We want a snapshot of our work.
-
 
 ```{r, message = FALSE, warning = FALSE, error = FALSE}
 packagelist <- c("tidyverse", "maps")
