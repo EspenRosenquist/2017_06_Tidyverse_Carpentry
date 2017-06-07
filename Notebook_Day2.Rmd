@@ -1,0 +1,361 @@
+---
+title: "tidyverse day 2"
+author: "Espen Rosenquist"
+date: "7 juni 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, echo = FALSE, message = FALSE}
+packagelist <- c("tidyverse", "maps")
+lapply(packagelist, library, character.only = TRUE)
+```
+
+# Reproducing a graph
+
+## Gapminder plus
+```{r}
+download.file(url = "https://raw.githubusercontent.com/dmi3kno/SWC-tidyverse/master/data/gapminder_plus.csv", 
+              destfile = "Data/gapminder_plus.csv")
+
+gapminder_plus <- read_csv(file = "./Data/gapminder_plus.csv")
+```
+
+## Final exam
+`*Key parameters for selected Aftrican countries with over 2 million baby deaths in 2007*
+
+- fertility
+- gdp per billion
+- gdp per capita
+- infant mortality
+- life expectancy
+- population minimum
+
+
+```{r}
+gapminder_plus %>% 
+    filter(continent == "Africa") %>% 
+    mutate(babiesDead = infantMort/1000*pop) %>% 
+    filter(babiesDead>2e6, year == 2007) %>% 
+    select(country) %>% 
+    left_join(gapminder_plus, by = "country") %>% 
+    mutate(babiesDead=infantMort/1000*pop,
+           gdb_bln = gdpPercap*pop/1e9,
+           pop_mln = pop/1e6) %>% 
+    select(-c(continent, pop, babiesDead)) %>%
+    gather(key = variables, value = value, -c(country, year)) %>% 
+    ggplot() +
+    # dot is placeholder for first parameter input - not necessary though
+    geom_text(data = . %>% 
+                  filter(year == 2007) %>% 
+                  group_by(variables) %>% 
+                  mutate(max_value = max(value)) %>% 
+                  filter(value == max_value), 
+              mapping = aes(x = year, 
+                            y = value, 
+                            label = country, 
+                            color = country,
+                            size = 10),
+              hjust = "right",
+              vjust = 0.7) +
+    geom_line(aes(x = year, y = value, group = country, color = country)) +
+        labs(y = NULL,
+         x = "Year",
+         title = "Key parameters for selected African countries",
+         subtitle = "with over 2 million baby deaths in 2007",
+         caption = "Fertility and infant mortality in number of babies per 1000 population, GDP in USD million, GDP per capita in USD, Life expectancy in years, population in million")+
+    theme_bw() +
+    theme(legend.position = "none") +
+    facet_wrap(~variables, scales = "free_y")
+
+```
+
+## Vectors
+A vector can be a single number:
+```{r}
+(x <- 5*6)
+```
+You can check the type:
+```{r}
+is.vector(x)
+```
+You can check it's length:
+```{r}
+length(x)
+```
+
+### Subsetting
+You can fill a vector AND read it out by subsetting it. You do this by single brackets.
+```{r}
+x[2] <- 31
+x[2]
+x[5] <- 42
+```
+
+**Position 0 is not valid**
+```{r}
+x[0]
+```
+
+R is build around vectors, so you can do vector math very easily:
+```{r}
+x <- 1:10
+x^2
+```
+the non-vector way:
+```{r}
+z <- vector(mode = mode(x), length = length(x))
+for(i in seq_along(x)){
+    z[i] <- x[i]^2
+}
+```
+
+### Recycling
+```{r}
+x <- 1:5
+y <- 3:7
+x + y
+# z is y, except for position 5:
+z <- y[-5]
+
+# You will get a warning message:
+x + z
+
+# if one vector in this is a multiple of the other, you will not get a warning
+z <- 1:10
+x + z
+```
+Without recycling you would not able to do this:
+```{r}
+z^x
+```
+
+Vectors can be of all types, but only one at a time.
+
+```{r}
+str(c("Hello", "workshop", "participants"))
+str(c(1:4, 10000, x))
+```
+R will try to coerce all values to one type.
+```{r}
+str(c("something", pi, 2:4, pi>3))
+str(c(pi, 2:4, pi>3))
+str(c(2L:4L, pi>3))
+```
+But still, you were able to put all kinds of stuff into the vector. So, **be aware**. 
+It first resolved every element <- the coercion happens at the end.
+
+
+```{r}
+set.seed(42)
+# 10 random floating numbers
+w <- rnorm(10)
+# indexing is still integer
+seq_along(w)
+# index of only the negative numbers
+which(w < 0)
+# the actual negative numbers
+w[which(w<0)]
+# a logical vector
+w < 0
+
+# drop a couple of positions
+w[-c(2,5)]
+```
+## lists
+```{r}
+x <- list("something", pi, 2:4, pi > 3)
+str(x)
+```
+This list contains:
+ - character
+ - number
+ - numberic vector
+ - boolean
+ 
+ A list allows us to name each element:
+ 
+```{r}
+x <- list(vegetable = "cabbage",
+          number = pi,
+          series = 2:4,
+          telling = pi > 3)
+str(x)
+```
+Lists can be subset too:
+```{r}
+# as list
+str(x[1])
+# as value, by name
+str(x$vegetable)
+# as value, by index
+str(x[[1]])
+```
+Nested lists:
+```{r}
+x <- list(vegetable = list("cabbage","spinach", "carrot"),
+          number = list(c(pi,0, 2.14, NA)),
+          series = list(list(2:4,3:5)),
+          telling = pi > 3)
+str(x)
+```
+
+### Excercise
+Extract an element from a complex list.
+```{r}
+# make a linear model (y ~ independent variable, data):
+(mod <- lm(lifeExp ~ gdpPercap, data = gapminder_plus))
+# we get a complex list!
+str(mod)
+```
+
+
+
+Subsetting becomes a bitch:
+```{r}
+# Simple example
+# df.residual is a vector
+mod$df.residual
+mod[["df.residual"]]
+mod[[8]]
+#qr.qr.first element
+mod[["qr"]][["qr"]][1]
+mod$qr$qr[1]
+mod$qr$qr[1,1]
+```
+## Rich data
+How do we get to rich data without collapsing it?
+
+### Poor data
+Summary life exptancy by continent:
+```{r}
+gapminder_plus %>% 
+    group_by(continent) %>% 
+    summarise(meanLifeExp = mean(lifeExp),
+              minLifeExp = min(lifeExp),
+              maxLifeExp = max(lifeExp)) 
+```
+```{r}
+gapminder_plus %>% 
+    ggplot() +
+    geom_line(mapping = aes(x = year, y = lifeExp, color = continent, group = country))
+```
+
+What happened to those outliers? They are outside the trends (hypothesis).
+```{r}
+gapminder_plus %>% 
+    ggplot(aes(x = year, y = lifeExp)) +
+    geom_line(aes(color = continent, group = country)) +
+    geom_smooth(aes(x = year, y = lifeExp), method = "lm", color = "black") +
+    facet_wrap(~continent)
+```
+
+Now we want to inspect the residuals, fit linear models for each country.
+*Residual: The difference between expected model and observed.*
+
+```{r}
+by_country <- gapminder_plus %>% 
+    group_by(continent, country) %>% 
+    nest()
+# not run
+# str(by_country$data)
+# First data frame:
+str(by_country$data[[1]])
+```
+The third element is a list which is nested.
+The first element of the list is a data frame, giving data about the first element in the `by_country`.
+
+
+### The map function
+```{r}
+library(purrr)
+```
+
+Map is a less ambigous `apply`. It expects a list.
+
+```{r}
+map(1:3, sqrt)
+map_dbl(1:3, sqrt)
+```
+
+Let's make a new complex object (we could just pipe further, but):
+```{r}
+model_by_country <- by_country %>% 
+    mutate(model = purrr::map(data, ~lm(lifeExp ~ year, data = .x)))
+```
+The ~ specifies a function, while the .x defines where the data is to land. Let's go further and make a summary:
+*note: map from purrr does not override the maps package, so we either have to detach the maps or qualify the map function.*
+```{r}
+model_by_country <- by_country %>% 
+    mutate(model = purrr::map(data, ~lm(lifeExp ~ year, data = .x))) %>% 
+    mutate(summr = purrr::map(model, broom::glance)) %>% 
+    # take out the model data as separate columns
+    unnest(summr) %>% 
+    # r square = 1 == perfect model -> 0.94 is quite good, so let's sort the data by r.squared
+    arrange(r.squared)
+head(model_by_country)
+
+model_by_country %>%
+    ggplot() +
+    geom_jitter(aes(x = continent, y = r.squared, color = continent, group = country)) +
+    theme(legend.position = "none")
+```
+This is getting closer. Let's filter the data and join the interesting countries back into gapminder_plus:
+```{r}
+low_countries <- model_by_country %>% 
+    filter(r.squared < 0.5) %>% 
+    select(country)
+```
+
+```{r}
+world <- map_data("world")  %>% 
+    rename(country = region) %>% 
+    left_join(gapminder_plus, by = "country")
+```
+
+### Assignment
+life expectancy per gdpcapita
+gapminder_p
+```{r}
+gapminder_plus %>% 
+    ggplot() +
+    geom_point(aes(x = log(gdpPercap), y = lifeExp, color = continent, group = country)) +
+    theme(legend.position = "none")
+```
+Life expectancy per gross domestic product per capita
+```{r}
+by_country <- gapminder_plus %>% 
+    group_by(continent, country) %>% 
+    nest() %>% 
+    mutate(model = purrr::map(data, ~lm(lifeExp ~ log(gdpPercap), data = .x))) %>% 
+    mutate(summr = purrr::map(model, broom::glance)) %>% 
+    # take out the model data as separate columns
+    unnest(summr) %>% 
+    # r square = 1 == perfect model -> 0.94 is quite good, so let's sort the data by r.squared
+    arrange(r.squared)
+
+by_country %>% 
+    filter(r.squared <0.1) %>% 
+    select(country, r.squared) %>% 
+    left_join(gapminder_plus) %>% 
+    ggplot() +
+    geom_point(aes(x = log(gdpPercap), y = lifeExp, color = country, group = country, size = r.squared))
+
+```
+
+## Save objects
+The (second) last thing to learn today is how to save an object, so that we can pick it up laters. THis is different from CSV or other formats.
+It is only readable in R.
+
+```{r}
+saveRDS(by_country, "./Data/by_country_tibble.rds")
+```
+
+We save the data as CSV:
+```{r}
+write_csv(gapminder_plus, "./Data/gapminder_plus_for_professor.csv")
+```
+
+The very last thing we do is to commit our changes to GitHub.

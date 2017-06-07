@@ -473,3 +473,5 @@ GapMinder$country[GapMinder$country == "United States"] <- "USA"
 ```
 But that would be silly for the set. Solution please?
 
+
+
